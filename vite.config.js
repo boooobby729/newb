@@ -45,6 +45,13 @@ export default defineConfig(async () => {
   
   return {
     server: {
+    proxy: {
+      "/websso": {
+        target: process.env.NODE_ENV === "prod"? "https://nocode.sankuai.com": "https://nocode.ee.test.sankuai.com",
+        changeOrigin: true,
+        xfwd: true,
+      },
+    },
       host: '::',
       port: '8080',
       hmr: {
