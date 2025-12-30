@@ -3752,9 +3752,12 @@ const Index = () => {
                 filter: 'blur(20px)',
                 animation: 'textFadeInBlur 1s ease-out 0.3s forwards',
                 willChange: 'opacity, filter',
+                whiteSpace: 'nowrap',
+                unicodeBidi: 'normal',
+                direction: 'ltr',
               }}
             >
-              混合的情感
+              {'混合的情感'}
             </div>
             {/* 第二段：就像混合的饮品 */}
             <div
@@ -3768,9 +3771,12 @@ const Index = () => {
                 filter: 'blur(20px)',
                 animation: 'textFadeInBlur 1s ease-out 0.8s forwards',
                 willChange: 'opacity, filter',
+                whiteSpace: 'nowrap',
+                unicodeBidi: 'normal',
+                direction: 'ltr',
               }}
             >
-              就像混合的饮品
+              {'就像混合的饮品'}
             </div>
             {/* 第三段：是灵魂的困惑 */}
             <div
