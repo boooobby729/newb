@@ -7,9 +7,56 @@
  */
 
 // ==================== 配置区域 - 请在这里填写你的信息 ====================
-// API Token 和配置信息
-const COZE_API_TOKEN = 'pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4'; // Coze API Token
-const COZE_WORKFLOW_ID = '7588851266873720832'; // Workflow ID
+// 默认配置（如果 localStorage 中没有配置，将使用这些值）
+const DEFAULT_COZE_API_TOKEN = 'pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4'; // Coze API Token
+const DEFAULT_COZE_WORKFLOW_ID = '7588851266873720832'; // Workflow ID
+
+// 从 localStorage 读取配置，如果没有则使用默认值
+const getConfig = () => {
+  try {
+    const storedToken = localStorage.getItem('coze_api_token');
+    const storedWorkflowId = localStorage.getItem('coze_workflow_id');
+    return {
+      token: storedToken || DEFAULT_COZE_API_TOKEN,
+      workflowId: storedWorkflowId || DEFAULT_COZE_WORKFLOW_ID,
+    };
+  } catch (e) {
+    console.warn('无法读取 localStorage，使用默认配置:', e);
+    return {
+      token: DEFAULT_COZE_API_TOKEN,
+      workflowId: DEFAULT_COZE_WORKFLOW_ID,
+    };
+  }
+};
+
+// 获取配置的函数
+const COZE_API_TOKEN = () => getConfig().token;
+const COZE_WORKFLOW_ID = () => getConfig().workflowId;
+
+// 保存配置到 localStorage
+export const saveCozeConfig = (token, workflowId) => {
+  try {
+    if (token) {
+      localStorage.setItem('coze_api_token', token);
+    }
+    if (workflowId) {
+      localStorage.setItem('coze_workflow_id', workflowId);
+    }
+    return true;
+  } catch (e) {
+    console.error('保存配置失败:', e);
+    return false;
+  }
+};
+
+// 获取配置（用于配置界面显示）
+export const getCozeConfig = () => {
+  const config = getConfig();
+  return {
+    token: config.token,
+    workflowId: config.workflowId,
+  };
+};
 
 // API 基础URL（如果使用代理，请使用 '/api/coze'，否则使用 'https://api.coze.cn'）
 const API_BASE_URL = '/api/coze'; // 使用代理路径，通过 Vite 代理避免 CORS 问题
@@ -26,7 +73,7 @@ export const createConversation = async () => {
     const response = await fetch(`${API_BASE_URL}/v1/conversation/create`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${COZE_API_TOKEN}`,
+        'Authorization': `Bearer ${COZE_API_TOKEN()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -94,13 +141,14 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
   try {
     // 使用 Coze Workflows Chat 端点
     const workflowUrl = `${API_BASE_URL}/v1/workflows/chat`;
+    const currentWorkflowId = COZE_WORKFLOW_ID();
     console.log('运行工作流 - 请求URL:', workflowUrl);
-    console.log('运行工作流 - Workflow ID:', COZE_WORKFLOW_ID);
+    console.log('运行工作流 - Workflow ID:', currentWorkflowId);
     console.log('运行工作流 - 用户消息:', userMessage);
     
     // 根据新的 API 格式构建请求体
     const requestBody = {
-      workflow_id: COZE_WORKFLOW_ID,
+      workflow_id: currentWorkflowId,
       parameters: {
         CONVERSATION_NAME: 'Default',
         USER_INPUT: userMessage || '',
@@ -115,14 +163,15 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
       ],
     };
     
+    const currentToken = COZE_API_TOKEN();
     console.log('运行工作流 - 请求体:', JSON.stringify(requestBody, null, 2));
-    console.log('运行工作流 - Authorization头:', `Bearer ${COZE_API_TOKEN ? COZE_API_TOKEN.substring(0, 15) + '...' : '未设置'}`);
-    console.log('运行工作流 - Token长度:', COZE_API_TOKEN ? COZE_API_TOKEN.length : 0);
+    console.log('运行工作流 - Authorization头:', `Bearer ${currentToken ? currentToken.substring(0, 15) + '...' : '未设置'}`);
+    console.log('运行工作流 - Token长度:', currentToken ? currentToken.length : 0);
     
     const response = await fetch(workflowUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${COZE_API_TOKEN}`,
+        'Authorization': `Bearer ${currentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
@@ -132,11 +181,12 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
     
     if (!response.ok) {
       const errorText = await response.text();
+      const currentToken = COZE_API_TOKEN();
       console.error('运行工作流失败 - HTTP状态:', response.status);
       console.error('运行工作流失败 - 响应内容:', errorText);
       console.error('运行工作流失败 - 请求URL:', workflowUrl);
-      console.error('运行工作流失败 - 使用的Token:', COZE_API_TOKEN ? `${COZE_API_TOKEN.substring(0, 10)}...` : '未设置');
-      console.error('运行工作流失败 - Authorization头:', `Bearer ${COZE_API_TOKEN ? '已设置' : '未设置'}`);
+      console.error('运行工作流失败 - 使用的Token:', currentToken ? `${currentToken.substring(0, 10)}...` : '未设置');
+      console.error('运行工作流失败 - Authorization头:', `Bearer ${currentToken ? '已设置' : '未设置'}`);
       
       let errorMessage = `运行工作流失败 (HTTP ${response.status})`;
       try {
@@ -149,9 +199,10 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
       
       // 401错误的特殊提示
       if (response.status === 401) {
-        const tokenPrefix = COZE_API_TOKEN ? COZE_API_TOKEN.substring(0, 15) : '未设置';
-        const tokenLength = COZE_API_TOKEN ? COZE_API_TOKEN.length : 0;
-        const tokenSuffix = COZE_API_TOKEN && COZE_API_TOKEN.length > 20 ? COZE_API_TOKEN.substring(COZE_API_TOKEN.length - 10) : '';
+        const currentToken = COZE_API_TOKEN();
+        const tokenPrefix = currentToken ? currentToken.substring(0, 15) : '未设置';
+        const tokenLength = currentToken ? currentToken.length : 0;
+        const tokenSuffix = currentToken && currentToken.length > 20 ? currentToken.substring(currentToken.length - 10) : '';
         
         errorMessage = `API认证失败 (401)。可能的原因：1) API Token无效或已过期 2) Token格式不正确 3) 请检查Token是否正确配置。当前使用的Token前缀: ${tokenPrefix}... 后缀: ...${tokenSuffix} (长度: ${tokenLength})`;
         console.error('========== 401 认证失败 ==========');
@@ -159,9 +210,9 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
         console.error('Token后缀:', tokenSuffix);
         console.error('Token长度:', tokenLength);
         console.error('Token格式检查:');
-        console.error('  - Token是否以 "cztei_" 或 "pat_" 开头:', COZE_API_TOKEN ? (COZE_API_TOKEN.startsWith('cztei_') || COZE_API_TOKEN.startsWith('pat_')) : false);
-        console.error('  - Token是否包含空格:', COZE_API_TOKEN ? COZE_API_TOKEN.includes(' ') : false);
-        console.error('  - Token是否包含换行符:', COZE_API_TOKEN ? COZE_API_TOKEN.includes('\n') : false);
+        console.error('  - Token是否以 "cztei_" 或 "pat_" 开头:', currentToken ? (currentToken.startsWith('cztei_') || currentToken.startsWith('pat_')) : false);
+        console.error('  - Token是否包含空格:', currentToken ? currentToken.includes(' ') : false);
+        console.error('  - Token是否包含换行符:', currentToken ? currentToken.includes('\n') : false);
         console.error('请确认：');
         console.error('  1) 在 Coze 控制台检查 Token 是否已过期');
         console.error('  2) 重新生成新的 API Token');

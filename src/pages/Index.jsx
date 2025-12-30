@@ -7,6 +7,7 @@ import starLightImage from '../assets/星光.gif';
 import lakeHeartBackgroundImage from '../assets/湖心手记 底色.png';
 import photoImage from '../assets/照片.png';
 import { chatWithBot } from '../utils/cozeApi';
+import { CozeConfigDialog } from '../components/CozeConfigDialog';
 
 // 导入16人格图片
 import INTJImage from '../assets/16人格/INTJ@1x.png';
@@ -103,6 +104,7 @@ const Index = () => {
   const messagesEndRef = useRef(null); // 用于滚动到底部
   const lastUserMessageRef = useRef(null); // 用于滚动到用户最新消息
   const scrollContainerRef = useRef(null); // 滚动容器ref
+  const [showCozeConfigDialog, setShowCozeConfigDialog] = useState(false); // Coze 配置对话框状态
   
   // Coze API 配置已移至 src/utils/cozeApi.js
 
@@ -1330,10 +1332,10 @@ const Index = () => {
       // 计算当前用户消息数量（用户消息已经在上面添加到历史记录中了）
       const currentUserMessageCount = conversationHistory.filter(msg => msg.type === 'user').length;
       
-      // 如果用户发送第6次及之后的消息，且解析到了3个选项，则添加第四个选项"进入湖心"
+      // 如果用户发送第6次及之后的消息，且解析到了3个选项，则添加第四个选项"进入湖心，看看结果"
       if (currentUserMessageCount >= 6 && parsedResult.options && parsedResult.options.length === 3) {
-        parsedResult.options.push('进入湖心');
-        console.log(`第${currentUserMessageCount}次消息：添加第四个选项"进入湖心"`, parsedResult.options);
+        parsedResult.options.push('进入湖心，看看结果');
+        console.log(`第${currentUserMessageCount}次消息：添加第四个选项"进入湖心，看看结果"`, parsedResult.options);
       }
       
       // 如果成功提取了选项，content 设为空（问题和选项会通过 extractedQuestion 和 extractedOptions 单独显示）
@@ -2320,6 +2322,37 @@ const Index = () => {
           </div>
         )}
         
+        {/* Coze 配置按钮 - 始终显示在右上角 */}
+        <button
+          onClick={() => setShowCozeConfigDialog(true)}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: lakeHeartRawResponse && !showLakeHeartRawResponse ? '140px' : '20px',
+            zIndex: 1000,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '20px',
+            padding: '8px 16px',
+            color: 'rgba(255, 255, 255, 0.9)',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
+            transition: 'all 0.2s',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+            e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+          }}
+        >
+          ⚙️ Coze 配置
+        </button>
+
         {/* 显示湖心原始返回内容的按钮 */}
         {lakeHeartRawResponse && !showLakeHeartRawResponse && (
           <button
@@ -2332,7 +2365,7 @@ const Index = () => {
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: '20px',
-              padding: '0px 0px',
+              padding: '8px 16px',
               color: 'rgba(255, 255, 255, 0.9)',
               cursor: 'pointer',
               fontSize: '13px',
@@ -2908,6 +2941,8 @@ const Index = () => {
                             const optionKey = `${message.messageId || message.timestamp}-${optIndex}`;
                             const isSelected = selectedOptions.has(optionKey);
                             const isLakeHeart = option.includes('进入湖心') || option.includes('进入心湖');
+                            // 显示文本：如果是进入湖心选项，显示完整文本；否则显示原文本
+                            const displayText = isLakeHeart ? '进入湖心，看看结果' : option;
                             
                             return (
                             <button
@@ -2980,7 +3015,7 @@ const Index = () => {
                                 }
                               }}
                             >
-                              {option}
+                              {displayText}
                             </button>
                             );
                           })}
@@ -3797,7 +3832,13 @@ const Index = () => {
           </div>
           
         </div>
-        </div> 
+        </div>
+        
+        {/* Coze 配置对话框 */}
+        <CozeConfigDialog 
+          open={showCozeConfigDialog} 
+          onOpenChange={setShowCozeConfigDialog} 
+        />
     </div>
   );
 };
