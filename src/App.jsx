@@ -12,8 +12,8 @@ const App = () => (
       <Toaster />
       <HashRouter>
         <Routes>
-          {navItems.map(({ to, page }) => (
-            <Route key={to} path={to} element={page} />
+          {navItems.map(({ to, page: Page }) => (
+            <Route key={to} path={to} element={<Page />} />
           ))}
         </Routes>
       </HashRouter>

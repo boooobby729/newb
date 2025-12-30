@@ -51,9 +51,36 @@ export default defineConfig(async () => {
         changeOrigin: true,
         xfwd: true,
       },
+      "/api/coze": {
+        target: "https://api.coze.cn",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/coze/, ""),
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // 确保 Authorization 头被正确转发
+            if (req.headers.authorization) {
+              proxyReq.setHeader('Authorization', req.headers.authorization);
+              console.log('[代理] 转发 Authorization 头:', req.headers.authorization.substring(0, 20) + '...');
+            } else {
+              console.warn('[代理] 警告: 请求中没有 Authorization 头');
+            }
+            // 确保 Content-Type 也被转发
+            if (req.headers['content-type']) {
+              proxyReq.setHeader('Content-Type', req.headers['content-type']);
+            }
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('[代理] 响应状态:', proxyRes.statusCode);
+            if (proxyRes.statusCode === 401) {
+              console.error('[代理] 401 认证失败 - 请检查 API Token 是否有效');
+            }
+          });
+        },
+      },
     },
-      host: '::',
-      port: '8080',
+      host: '0.0.0.0', // 允许从局域网访问
+      port: 8080,
       hmr: {
         overlay: false,
       },
