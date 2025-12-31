@@ -8,6 +8,25 @@
 
 // ==================== 配置区域 - 请在这里填写你的信息 ====================
 // 默认配置（如果 localStorage 中没有配置，将使用这些值）
+// 
+// API 调用示例（curl）:
+// curl -X POST 'https://api.coze.cn/v1/workflows/chat' \
+//   -H "Authorization: Bearer pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4" \
+//   -H "Content-Type: application/json" \
+//   -d '{
+//     "workflow_id": "7588851266873720832",
+//     "parameters": {
+//       "CONVERSATION_NAME": "Default",
+//       "USER_INPUT": "进入湖心"
+//     },
+//     "additional_messages": [{
+//       "content": "进入湖心",
+//       "content_type": "text",
+//       "role": "user",
+//       "type": "question"
+//     }]
+//   }'
+//
 const DEFAULT_COZE_API_TOKEN = 'pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4'; // Coze API Token
 const DEFAULT_COZE_WORKFLOW_ID = '7588851266873720832'; // Workflow ID
 
@@ -58,8 +77,42 @@ export const getCozeConfig = () => {
   };
 };
 
-// API 基础URL（如果使用代理，请使用 '/api/coze'，否则使用 'https://api.coze.cn'）
-const API_BASE_URL = '/api/coze'; // 使用代理路径，通过 Vite 代理避免 CORS 问题
+// API 基础URL（根据环境动态设置）
+// 优先尝试使用代理路径 '/api/coze'（如果平台支持代理）
+// 如果代理不可用，再回退到直接使用 'https://api.coze.cn'
+const getApiBaseUrl = () => {
+  // 检查是否在开发环境（有 Vite 开发服务器）
+  const isDevelopment = import.meta.env.MODE === 'development';
+  
+  // 检查是否在本地开发环境（通过 hostname 判断）
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '0.0.0.0' ||
+    window.location.hostname.includes('localhost')
+  );
+  
+  // 检查是否在 NoCode 平台内（通过 window.NoCode 判断）
+  const isInNoCodePlatform = typeof window !== 'undefined' && typeof window.NoCode !== 'undefined';
+  
+  // 判断逻辑：
+  // 1. 如果是开发环境且是本地地址，使用代理（Vite 代理可用）
+  // 2. 如果在 NoCode 平台内，也尝试使用代理路径（如果平台配置了代理）
+  // 3. 否则直接使用 API 地址
+  const useProxy = (isDevelopment && isLocalhost) || isInNoCodePlatform;
+  const apiBaseUrl = useProxy ? '/api/coze' : 'https://api.coze.cn';
+  
+  console.log('[Coze API] URL 选择:', {
+    isDevelopment,
+    isLocalhost,
+    isInNoCodePlatform,
+    useProxy,
+    apiBaseUrl,
+    hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown'
+  });
+  
+  return apiBaseUrl;
+};
 
 // ==================== API 调用函数 ====================
 
@@ -69,8 +122,9 @@ const API_BASE_URL = '/api/coze'; // 使用代理路径，通过 Vite 代理避�
  */
 export const createConversation = async () => {
   try {
-    console.log('创建会话 - 请求URL:', `${API_BASE_URL}/v1/conversation/create`);
-    const response = await fetch(`${API_BASE_URL}/v1/conversation/create`, {
+    const apiBaseUrl = getApiBaseUrl();
+    console.log('创建会话 - 请求URL:', `${apiBaseUrl}/v1/conversation/create`);
+    const response = await fetch(`${apiBaseUrl}/v1/conversation/create`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${COZE_API_TOKEN()}`,
@@ -140,7 +194,8 @@ export const createConversation = async () => {
 export const sendMessage = async (conversationId, userMessage, stream = false) => {
   try {
     // 使用 Coze Workflows Chat 端点
-    const workflowUrl = `${API_BASE_URL}/v1/workflows/chat`;
+    const apiBaseUrl = getApiBaseUrl();
+    const workflowUrl = `${apiBaseUrl}/v1/workflows/chat`;
     const currentWorkflowId = COZE_WORKFLOW_ID();
     console.log('运行工作流 - 请求URL:', workflowUrl);
     console.log('运行工作流 - Workflow ID:', currentWorkflowId);
@@ -168,16 +223,44 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
     console.log('运行工作流 - Authorization头:', `Bearer ${currentToken ? currentToken.substring(0, 15) + '...' : '未设置'}`);
     console.log('运行工作流 - Token长度:', currentToken ? currentToken.length : 0);
     
-    const response = await fetch(workflowUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${currentToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    console.log('运行工作流 - 响应状态:', response.status, response.statusText);
+    let response;
+    try {
+      response = await fetch(workflowUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      console.log('运行工作流 - 响应状态:', response.status, response.statusText);
+    } catch (fetchError) {
+      // 捕获网络错误（如 CORS、网络连接失败等）
+      console.error('运行工作流 - 网络请求失败:', fetchError);
+      console.error('错误类型:', fetchError.name);
+      console.error('错误消息:', fetchError.message);
+      
+      // 检查是否是 CORS 错误
+      const isCorsError = fetchError.message.includes('Failed to fetch') || 
+                         fetchError.message.includes('CORS') ||
+                         fetchError.name === 'TypeError';
+      
+      // 检查是否在 NoCode 平台内
+      const isInNoCodePlatform = typeof window !== 'undefined' && typeof window.NoCode !== 'undefined';
+      
+      let errorMessage = '网络请求失败';
+      if (isCorsError && isInNoCodePlatform) {
+        errorMessage = '在平台内无法直接访问 Coze API（CORS 限制）。\n\n解决方案：\n1. 请在 NoCode 平台配置服务器端代理\n2. 将 /api/coze 路径代理到 https://api.coze.cn\n3. 或联系平台管理员配置代理\n\n如果已配置代理但仍出现此错误，请检查代理配置是否正确。';
+      } else if (isCorsError) {
+        errorMessage = 'CORS 错误：无法访问 Coze API。请检查网络连接或代理配置。';
+      } else if (fetchError.message.includes('network') || fetchError.message.includes('Network')) {
+        errorMessage = '网络连接失败，请检查网络设置。';
+      } else {
+        errorMessage = `网络请求失败: ${fetchError.message || '未知错误'}`;
+      }
+      
+      throw new Error(errorMessage);
+    }
     
     if (!response.ok) {
       const errorText = await response.text();
