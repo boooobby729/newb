@@ -11,11 +11,38 @@ if (!window.location.hash || window.location.hash === '#') {
 }
 
 // 创建根节点并渲染应用
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <NoCodeProvider>
-      <App />
-    </NoCodeProvider>
-  </React.StrictMode>
-);
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  console.error('❌ 找不到 root 元素！');
+  // 如果找不到 root，创建一个
+  const newRoot = document.createElement('div');
+  newRoot.id = 'root';
+  document.body.appendChild(newRoot);
+  rootElement = newRoot;
+}
+
+console.log('✅ 找到 root 元素，开始渲染...');
+console.log('📍 当前 URL:', window.location.href);
+console.log('📍 当前 hash:', window.location.hash);
+
+try {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <NoCodeProvider>
+        <App />
+      </NoCodeProvider>
+    </React.StrictMode>
+  );
+  console.log('✅ React 应用已渲染');
+} catch (error) {
+  console.error('❌ React 渲染出错:', error);
+  // 如果渲染失败，至少显示错误信息
+  rootElement.innerHTML = `
+    <div style="padding: 20px; color: red; font-family: monospace;">
+      <h1>渲染错误</h1>
+      <pre>${error.toString()}</pre>
+      <pre>${error.stack || ''}</pre>
+    </div>
+  `;
+}
 

@@ -11,21 +11,24 @@
 // 
 // API 调用示例（curl）:
 // curl -X POST 'https://api.coze.cn/v1/workflows/chat' \
-//   -H "Authorization: Bearer pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4" \
-//   -H "Content-Type: application/json" \
-//   -d '{
-//     "workflow_id": "7588851266873720832",
-//     "parameters": {
-//       "CONVERSATION_NAME": "Default",
-//       "USER_INPUT": "进入湖心"
-//     },
-//     "additional_messages": [{
+// -H "Authorization: Bearer pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4" \
+// -H "Content-Type: application/json" \
+// -d '{
+//   "workflow_id": "7588851266873720832",
+//   "parameters": {
+//     "CONVERSATION_NAME": "Default",
+//     "USER_INPUT": "进入湖心"
+//   },
+//   "additional_messages": [
+//     {
 //       "content": "进入湖心",
 //       "content_type": "text",
 //       "role": "user",
 //       "type": "question"
-//     }]
-//   }'
+//     }
+//   ],
+//   "workflow_version": "v0.0.23"
+// }'
 //
 const DEFAULT_COZE_API_TOKEN = 'pat_Bwj19XEVSglRJZhNjnuQ2aY0ZUB5CcK6SzGiSunRZSADkZRyR5UHbH3vMe5UJpT4'; // Coze API Token
 const DEFAULT_COZE_WORKFLOW_ID = '7588851266873720832'; // Workflow ID
@@ -216,6 +219,7 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
           type: 'question',
         },
       ],
+      workflow_version: 'v0.0.23', // 指定工作流版本
     };
     
     const currentToken = COZE_API_TOKEN();
@@ -326,17 +330,120 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
       const text = await response.text();
       console.log('运行工作流 - 原始响应（SSE）:', text.substring(0, 500));
       
-      // 解析 SSE 格式
+      // 解析 SSE 格式 - 重新设计，避免重复提取
       const lines = text.split('\n');
       let currentEvent = null;
       let currentData = '';
       let eventType = null;
       
+      // 用于存储已提取的内容片段，避免重复
+      // 使用更智能的去重：不仅检查完全相同的字符串，还检查是否已经包含
+      const extractedChunks = [];
+      let accumulatedText = ''; // 累积的完整文本，用于检查重复
+      
+      // 检查内容是否已经包含在已提取的内容中
+      const isContentDuplicate = (newContent) => {
+        if (!newContent || newContent.trim().length === 0) return true;
+        const newContentClean = newContent.trim();
+        
+        // 如果累积文本为空，肯定不是重复
+        if (accumulatedText.length === 0) return false;
+        
+        // 检查新内容是否与累积文本完全相同
+        if (accumulatedText === newContentClean) {
+          return true;
+        }
+        
+        // 检查新内容是否已经包含在累积文本中
+        if (accumulatedText.includes(newContentClean)) {
+          return true;
+        }
+        
+        // 检查累积文本是否已经包含在新内容中（新内容可能是完整版本）
+        if (newContentClean.includes(accumulatedText)) {
+          // 如果新内容更长，说明是完整版本，需要替换
+          return false; // 允许替换
+        }
+        
+        // 检查是否有大量重叠（超过80%的内容重叠）
+        const overlapThreshold = Math.min(newContentClean.length, accumulatedText.length) * 0.8;
+        if (overlapThreshold > 0) {
+          // 简单的重叠检查：计算公共子串
+          let maxOverlap = 0;
+          for (let i = 0; i <= newContentClean.length - 10; i++) {
+            for (let j = 0; j <= accumulatedText.length - 10; j++) {
+              let overlap = 0;
+              while (i + overlap < newContentClean.length && 
+                     j + overlap < accumulatedText.length &&
+                     newContentClean[i + overlap] === accumulatedText[j + overlap]) {
+                overlap++;
+              }
+              maxOverlap = Math.max(maxOverlap, overlap);
+            }
+          }
+          if (maxOverlap >= overlapThreshold) {
+            return true; // 大量重叠，认为是重复
+          }
+        }
+        
+        return false;
+      };
+      
+      // 递归提取文本内容的辅助函数
+      const extractTextFromObject = (obj, depth = 0) => {
+        if (depth > 5) return null; // 防止无限递归
+        
+        if (typeof obj === 'string') {
+          // 验证字符串是否有效
+          if (obj.trim().length > 0 && 
+              /[\u4e00-\u9fff]/.test(obj) &&
+              !obj.match(/^\s*\{[\s\S]*\}\s*$/) && // 不是纯 JSON
+              !obj.match(/^(msg_type|generate_answer|finish_reason|event|id|data)/i)) { // 不是系统消息
+            return obj;
+          }
+          return null;
+        }
+        
+        if (typeof obj !== 'object' || obj === null) return null;
+        
+        // 跳过系统消息对象
+        if (obj.msg_type || (obj.node_type && obj.node_type !== 'End') || obj.finish_reason) {
+          return null;
+        }
+        
+        // 优先检查 content 字段（最可靠）
+        if (obj.content) {
+          const content = typeof obj.content === 'string' 
+            ? obj.content 
+            : extractTextFromObject(obj.content, depth + 1);
+          if (content && typeof content === 'string' && 
+              content.trim().length > 0 && 
+              /[\u4e00-\u9fff]/.test(content)) {
+            return content;
+          }
+        }
+        
+        // 检查其他可能的文本字段
+        for (const key of ['text', 'output', 'result', 'message', 'answer', 'reply']) {
+          if (obj[key]) {
+            const value = typeof obj[key] === 'string' 
+              ? obj[key]
+              : extractTextFromObject(obj[key], depth + 1);
+            if (value && typeof value === 'string' && 
+                value.trim().length > 0 && 
+                /[\u4e00-\u9fff]/.test(value)) {
+              return value;
+            }
+          }
+        }
+        
+        return null;
+      };
+      
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         
         if (line.startsWith('id:')) {
-          // 忽略 id 行
           continue;
         } else if (line.startsWith('event:')) {
           eventType = line.substring(6).trim();
@@ -348,57 +455,71 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
             const jsonData = JSON.parse(currentData);
             fullResponseData.push(jsonData);
             
-            console.log('SSE 消息事件:', eventType, '数据:', jsonData);
+            console.log('SSE 消息事件:', eventType, '节点类型:', jsonData.node_type);
             
-            // 从数据中提取内容
-            // 方式1: 直接有 content 字段
-            if (jsonData.content) {
-              const content = typeof jsonData.content === 'string' 
-                ? jsonData.content 
-                : jsonData.content.text || jsonData.content.content || '';
-              if (content) {
-                replyText += content;
-              }
-            }
-            // 方式2: data.content
-            else if (jsonData.data?.content) {
-              const content = typeof jsonData.data.content === 'string'
-                ? jsonData.data.content
-                : jsonData.data.content.text || jsonData.data.content.content || '';
-              if (content) {
-                replyText += content;
-              }
-            }
-            // 方式3: data.output 或 data.result
-            else if (jsonData.data?.output) {
-              const output = typeof jsonData.data.output === 'string'
-                ? jsonData.data.output
-                : jsonData.data.output.text || jsonData.data.output.content || '';
-              if (output) {
-                replyText += output;
-              }
-            }
-            else if (jsonData.data?.result) {
-              const result = typeof jsonData.data.result === 'string'
-                ? jsonData.data.result
-                : jsonData.data.result.text || jsonData.data.result.content || '';
-              if (result) {
-                replyText += result;
-              }
-            }
-            // 方式4: 直接在根级别的文本字段
-            else if (jsonData.text || jsonData.message || jsonData.output) {
-              replyText += jsonData.text || jsonData.message || jsonData.output || '';
-            }
+            // 只从每个消息中提取一次内容，避免重复
+            // 优先级：node_type === 'End' 的 content > data.content > data.output > 其他
+            let extractedContent = null;
             
-            // 方式5: 从 node_type 为 "End" 的消息中提取 content（根据错误信息中的结构）
-            // 如果节点完成且有 content，提取它
+            // 优先级1: node_type === 'End' 的 content（最终结果）
             if (jsonData.node_type === 'End' && jsonData.content) {
-              const content = typeof jsonData.content === 'string' 
-                ? jsonData.content 
-                : jsonData.content.text || jsonData.content.content || '';
-              if (content) {
-                replyText = content; // End 节点的 content 通常是最终回复
+              extractedContent = extractTextFromObject(jsonData.content);
+              if (extractedContent) {
+                console.log('✅ 从 End 节点提取内容:', extractedContent.substring(0, 100));
+              }
+            }
+            
+            // 优先级2: data.content
+            if (!extractedContent && jsonData.data?.content) {
+              extractedContent = extractTextFromObject(jsonData.data.content);
+              if (extractedContent) {
+                console.log('✅ 从 data.content 提取内容:', extractedContent.substring(0, 100));
+              }
+            }
+            
+            // 优先级3: data.output
+            if (!extractedContent && jsonData.data?.output) {
+              extractedContent = extractTextFromObject(jsonData.data.output);
+              if (extractedContent) {
+                console.log('✅ 从 data.output 提取内容:', extractedContent.substring(0, 100));
+              }
+            }
+            
+            // 优先级4: 根级别的 content
+            if (!extractedContent && jsonData.content) {
+              extractedContent = extractTextFromObject(jsonData.content);
+              if (extractedContent) {
+                console.log('✅ 从根 content 提取内容:', extractedContent.substring(0, 100));
+              }
+            }
+            
+            // 优先级5: data 字段（如果是字符串）
+            if (!extractedContent && jsonData.data && typeof jsonData.data === 'string') {
+              extractedContent = extractTextFromObject(jsonData.data);
+              if (extractedContent) {
+                console.log('✅ 从 data 字符串提取内容:', extractedContent.substring(0, 100));
+              }
+            }
+            
+            // 如果提取到内容，检查是否重复，然后添加
+            if (extractedContent) {
+              // 检查是否是重复内容
+              if (!isContentDuplicate(extractedContent)) {
+                // 如果新内容包含了已累积的内容，替换它
+                const newContentClean = extractedContent.trim();
+                if (accumulatedText && newContentClean.includes(accumulatedText)) {
+                  console.log('🔄 发现更完整的内容，替换旧内容');
+                  replyText = newContentClean; // 替换为完整版本
+                  accumulatedText = newContentClean;
+                  extractedChunks.length = 0; // 清空chunks，只保留新的
+                  extractedChunks.push(newContentClean);
+                } else {
+                  extractedChunks.push(newContentClean);
+                  replyText += extractedContent;
+                  accumulatedText = replyText.trim();
+                }
+              } else {
+                console.log('⚠️ 跳过重复内容:', extractedContent.substring(0, 50));
               }
             }
             
@@ -413,33 +534,160 @@ export const sendMessage = async (conversationId, userMessage, stream = false) =
         }
       }
       
-      console.log('SSE 解析完成，提取的内容:', replyText);
+      console.log('========== SSE 解析完成 ==========');
+      console.log('提取的内容:', replyText);
+      console.log('提取的内容长度:', replyText.length);
+      console.log('完整响应数据数量:', fullResponseData.length);
       console.log('完整响应数据:', JSON.stringify(fullResponseData, null, 2));
+      console.log('===================================');
       
-      if (!replyText) {
-        // 如果没能提取到内容，尝试从最后一个消息中提取
-        if (fullResponseData.length > 0) {
-          const lastMsg = fullResponseData[fullResponseData.length - 1];
-          console.warn('未能直接提取内容，尝试从最后一条消息提取:', lastMsg);
+      if (!replyText || replyText.trim().length === 0) {
+        // 如果没能提取到内容，尝试从所有消息中提取
+        console.warn('未能直接提取内容，尝试从所有消息中提取...');
+        
+        // 递归查找函数
+        const findTextInObject = (obj, depth = 0) => {
+          if (depth > 5) return ''; // 防止无限递归
+          if (typeof obj === 'string' && obj.trim().length > 0 && /[\u4e00-\u9fff]/.test(obj)) {
+            return obj;
+          }
+          if (typeof obj !== 'object' || obj === null) return '';
           
-          // 尝试各种可能的字段路径
-          replyText = lastMsg.content || 
-                     lastMsg.data?.content || 
-                     lastMsg.data?.output || 
-                     lastMsg.data?.result ||
-                     lastMsg.text ||
-                     lastMsg.message ||
-                     '';
+          // 跳过系统消息
+          if (obj.msg_type || (obj.node_type && obj.node_type !== 'End')) {
+            return '';
+          }
+          
+          // 检查常见的文本字段
+          for (const key of ['content', 'text', 'output', 'result', 'message', 'answer', 'reply']) {
+            if (obj[key]) {
+              const value = typeof obj[key] === 'string' 
+                ? obj[key] 
+                : findTextInObject(obj[key], depth + 1);
+              if (value && value.trim().length > 0 && /[\u4e00-\u9fff]/.test(value)) {
+                return value;
+              }
+            }
+          }
+          
+          return '';
+        };
+        
+        // 遍历所有消息，累积所有找到的内容（但要去重）
+        for (const msg of fullResponseData) {
+          const found = findTextInObject(msg);
+          if (found) {
+            const foundClean = found.trim();
+            // 检查是否是重复内容
+            if (!isContentDuplicate(foundClean)) {
+              // 如果新内容包含了已累积的内容，替换它
+              if (accumulatedText && foundClean.includes(accumulatedText)) {
+                console.log('🔄 发现更完整的内容，替换旧内容');
+                replyText = foundClean;
+                accumulatedText = foundClean;
+                extractedChunks.length = 0;
+                extractedChunks.push(foundClean);
+              } else {
+                extractedChunks.push(foundClean);
+                replyText += found;
+                accumulatedText = replyText.trim();
+              }
+              console.log('从消息中提取内容:', foundClean.substring(0, 100));
+            } else {
+              console.log('⚠️ 跳过重复内容:', foundClean.substring(0, 50));
+            }
+          }
         }
       }
       
-      if (!replyText) {
+      if (!replyText || replyText.trim().length === 0) {
         console.warn('无法从 SSE 响应中提取回复内容');
         console.warn('完整响应数据:', JSON.stringify(fullResponseData, null, 2));
         throw new Error('API返回的数据格式不正确，无法提取回复内容，请查看控制台查看完整响应');
       }
       
-      console.log('成功提取回复内容:', replyText);
+      // 计算两个字符串的相似度（简单的Jaccard相似度）
+      const calculateSimilarity = (str1, str2) => {
+        const set1 = new Set(str1.split(''));
+        const set2 = new Set(str2.split(''));
+        const intersection = new Set([...set1].filter(x => set2.has(x)));
+        const union = new Set([...set1, ...set2]);
+        return intersection.size / union.size;
+      };
+      
+      // 最终去重：去除重复的句子和段落
+      const finalDeduplicate = (text) => {
+        if (!text || text.trim().length === 0) return text;
+        
+        // 首先检查是否有明显的重复块（整个文本重复两次）
+        const textTrimmed = text.trim();
+        const halfLength = Math.floor(textTrimmed.length / 2);
+        const firstHalf = textTrimmed.substring(0, halfLength);
+        const secondHalf = textTrimmed.substring(halfLength);
+        
+        // 如果前半部分和后半部分高度相似，说明整个文本重复了
+        if (firstHalf.length > 20 && secondHalf.length > 20) {
+          const similarity = calculateSimilarity(firstHalf, secondHalf);
+          if (similarity > 0.8) {
+            console.log('⚠️ 检测到整个文本重复，只保留前半部分');
+            return firstHalf.trim();
+          }
+        }
+        
+        // 按句子分割（以句号、问号、感叹号结尾）
+        const sentences = text.match(/[^。！？?]+[。！？?]/g) || [];
+        const uniqueSentences = [];
+        const seenSentences = new Map(); // 使用Map来存储，方便替换
+        
+        for (const sentence of sentences) {
+          const sentenceClean = sentence.trim();
+          if (sentenceClean.length < 3) continue;
+          
+          // 检查是否已经存在（完全匹配或包含关系）
+          let foundDuplicate = false;
+          for (const [seen, original] of seenSentences.entries()) {
+            if (seen === sentenceClean) {
+              foundDuplicate = true;
+              break;
+            }
+            // 检查包含关系
+            if (seen.includes(sentenceClean)) {
+              foundDuplicate = true;
+              break;
+            }
+            if (sentenceClean.includes(seen)) {
+              // 新句子更长，替换旧的
+              const index = uniqueSentences.indexOf(original);
+              if (index !== -1) {
+                uniqueSentences[index] = sentence;
+                seenSentences.delete(seen);
+                seenSentences.set(sentenceClean, sentence);
+              }
+              foundDuplicate = true;
+              break;
+            }
+          }
+          
+          if (!foundDuplicate) {
+            uniqueSentences.push(sentence);
+            seenSentences.set(sentenceClean, sentence);
+          }
+        }
+        
+        // 重新组合
+        let result = uniqueSentences.join('');
+        // 处理剩余的文本（不在句子中的部分）
+        const remaining = text.replace(/[^。！？?]+[。！？?]/g, '').trim();
+        if (remaining && !result.includes(remaining)) {
+          result += remaining;
+        }
+        
+        return result.trim();
+      };
+      
+      replyText = finalDeduplicate(replyText);
+      
+      console.log('成功提取回复内容（已去重）:', replyText);
       return replyText;
       
     } else {
@@ -575,4 +823,8 @@ export const example2 = async () => {
     console.error('错误:', error.message);
   }
 };
+
+
+
+
 

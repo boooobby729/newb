@@ -28,6 +28,11 @@ import ESTPImage from '../assets/16人格/ESTP@1x.png';
 import ESFPImage from '../assets/16人格/ESFP@1x.png';
 
 const Index = () => {
+  // 调试：确认组件已加载
+  useEffect(() => {
+    console.log('✅ Index 组件已加载，showSplashPage:', true);
+  }, []);
+  
   const [showSplashPage, setShowSplashPage] = useState(true); // 启动页状态
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showSecondPage, setShowSecondPage] = useState(false);
@@ -58,6 +63,9 @@ const Index = () => {
   const [isEnteringLakeHeart, setIsEnteringLakeHeart] = useState(false); // 正在进入湖心（加载中）状态
   const [showFirstPageBackground, setShowFirstPageBackground] = useState(false); // 第一页背景图片显示状态
   const [showSecondPageBackground, setShowSecondPageBackground] = useState(false); // 第二页背景图片显示状态
+  const [showThirdPageBackground, setShowThirdPageBackground] = useState(false); // 第三页背景图片显示状态
+  const [showStarPageBackground, setShowStarPageBackground] = useState(false); // 星光页背景图片显示状态
+  const [showFourthPageBackground, setShowFourthPageBackground] = useState(false); // 湖心页背景图片显示状态
   const [hasShownThirdPageTitle, setHasShownThirdPageTitle] = useState(false); // 第三页标题是否已显示过
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -423,6 +431,10 @@ const Index = () => {
     setTimeout(() => {
       setShowSplashPage(false);
       setIsExitingSplashPage(false);
+      // 延迟一小段时间后开始第一页背景淡入
+      setTimeout(() => {
+        setShowFirstPageBackground(true);
+      }, 50);
     }, 600); // 动画持续时间600ms
   };
 
@@ -435,8 +447,9 @@ const Index = () => {
   };
 
   const handleNextStepClick = () => {
-    // 开始退出动画
+    // 开始退出动画，同时淡出第二页背景
     setIsExitingSecondPage(true);
+    setShowSecondPageBackground(false);
     // 动画完成后切换到第三页
     setTimeout(() => {
       setShowSecondPage(false);
@@ -444,6 +457,10 @@ const Index = () => {
       setIsExitingSecondPage(false);
       // 重置第三页标题显示状态，以便触发动画
       setHasShownThirdPageTitle(false);
+      // 延迟一小段时间后开始第三页背景淡入
+      setTimeout(() => {
+        setShowThirdPageBackground(true);
+      }, 50);
     }, 600); // 动画持续时间600ms
   };
 
@@ -468,6 +485,8 @@ const Index = () => {
       // 三段文本播放完成后（最后一段2.3s完成），停留2秒，然后开始消散动画
       const timer = setTimeout(() => {
         setIsExitingFirstPage(true);
+        // 同时淡出第一页背景
+        setShowFirstPageBackground(false);
         // 消散动画完成后切换到第二页
         setTimeout(() => {
           setShowSecondPage(true);
@@ -736,8 +755,9 @@ const Index = () => {
   const handleEnterLakeHeart = async () => {
     console.log('用户选择了"进入湖心"，发送给Coze: 进入湖心');
     
-    // 触发对话页内容向上消失和模糊效果
+    // 触发对话页内容向上消失和模糊效果，同时淡出第三页背景
     setIsExitingThirdPage(true);
+    setShowThirdPageBackground(false);
     
     // 动画完成后切换到星光页面
     setTimeout(() => {
@@ -745,6 +765,10 @@ const Index = () => {
       setShowStarPage(true);
       setIsExitingThirdPage(false);
       setIsEnteringLakeHeart(true);
+      // 延迟一小段时间后开始星光页背景淡入
+      setTimeout(() => {
+        setShowStarPageBackground(true);
+      }, 50);
     }, 1200); // 动画持续时间1200ms
     
     try {
@@ -792,27 +816,37 @@ const Index = () => {
       setLakeHeartSections(parsedSections);
       console.log('解析后的四段内容:', parsedSections);
       
-      // API调用完成，触发星光页面退出动画
+      // API调用完成，触发星光页面退出动画，同时淡出星光页背景
       setIsEnteringLakeHeart(false);
       setIsExitingStarPage(true);
+      setShowStarPageBackground(false);
       
       // 退出动画完成后切换到第四页
       setTimeout(() => {
         setShowStarPage(false);
         setShowFourthPage(true);
         setIsExitingStarPage(false);
+        // 延迟一小段时间后开始湖心页背景淡入
+        setTimeout(() => {
+          setShowFourthPageBackground(true);
+        }, 50);
       }, 1200); // 退出动画持续时间1200ms
     } catch (error) {
       console.error('获取湖心回复失败:', error);
-      // 即使失败也触发退出动画
+      // 即使失败也触发退出动画，同时淡出星光页背景
       setIsEnteringLakeHeart(false);
       setIsExitingStarPage(true);
+      setShowStarPageBackground(false);
       
       // 退出动画完成后切换到第四页
       setTimeout(() => {
         setShowStarPage(false);
         setShowFourthPage(true);
         setIsExitingStarPage(false);
+        // 延迟一小段时间后开始湖心页背景淡入
+        setTimeout(() => {
+          setShowFourthPageBackground(true);
+        }, 50);
       }, 1200);
     }
   };
@@ -864,11 +898,12 @@ const Index = () => {
   };
 
   // 解析回复内容，提取问题和选项
+  // 彻底重写的解析函数 - 简单、可靠、直接
   const parseReplyContent = (reply) => {
     // 重置提取结果
     setExtractedQuestion('');
     setExtractedOptions([]);
-    setSelectedOptions(new Set()); // 重置选中状态
+    setSelectedOptions(new Set());
     
     if (!reply) return { question: '', options: [] };
     
@@ -876,412 +911,159 @@ const Index = () => {
     console.log('原始返回内容:', reply);
     console.log('返回内容长度:', reply.length);
     
-    // 优先尝试解析 JSON 格式（最可靠的方式）
+    const text = String(reply).trim();
+    
+    // 第一步：尝试JSON解析（最可靠）
     try {
-      // 方法1: 尝试解析整个回复为 JSON
       let jsonData = null;
       try {
-        jsonData = JSON.parse(reply);
+        jsonData = JSON.parse(text);
       } catch (e1) {
-        // 如果整个回复不是 JSON，尝试提取 JSON 对象（可能包含在文本中）
-        const jsonMatch = reply.match(/\{[\s\S]*\}/);
+        // JSON解析失败，尝试从文本中提取JSON
+        const jsonMatch = text.match(/\{[\s\S]*"question"[\s\S]*"options"[\s\S]*\}/);
         if (jsonMatch) {
           try {
             jsonData = JSON.parse(jsonMatch[0]);
           } catch (e2) {
-            // 尝试查找包含 question 和 options 的 JSON
-            const questionOptionsMatch = reply.match(/\{[\s\S]*"question"[\s\S]*"options"[\s\S]*\}/);
-            if (questionOptionsMatch) {
+            const anyJsonMatch = text.match(/\{[\s\S]*\}/);
+            if (anyJsonMatch) {
               try {
-                jsonData = JSON.parse(questionOptionsMatch[0]);
-              } catch (e3) {
-                console.log('无法解析 JSON 对象');
-              }
+                jsonData = JSON.parse(anyJsonMatch[0]);
+              } catch (e3) {}
             }
           }
         }
       }
       
       if (jsonData) {
-        // 检查是否有 question 和 options 字段
-        if (jsonData.question && jsonData.options && Array.isArray(jsonData.options) && jsonData.options.length >= 3) {
-          // 直接使用原始文本，不过度清理，只做基本的trim
-          const question = String(jsonData.question).trim();
-          const options = jsonData.options.slice(0, 3)
-            .map(opt => String(opt).trim())
-            .filter(opt => opt && opt !== 'null' && opt.length > 0);
-          
-          if (question && options.length === 3) {
-            setExtractedQuestion(question);
-            setExtractedOptions(options);
-            console.log('✅ 成功解析 JSON 格式:', { question, options });
-            console.log('原始Coze返回:', reply);
-            return { question, options };
-          }
-        }
+        const question = jsonData.question || jsonData.content || jsonData.text || '';
+        const options = jsonData.options || jsonData.choices || [];
         
-        // 检查是否有其他可能的字段名（如 content, text 等）
-        const questionField = jsonData.question || jsonData.content || jsonData.text || jsonData.message || '';
-        const optionsField = jsonData.options || jsonData.choices || jsonData.selections || [];
-        
-        if (questionField && Array.isArray(optionsField) && optionsField.length >= 3) {
-          const question = String(questionField).trim();
-          const options = optionsField.slice(0, 3)
+        if (question && Array.isArray(options) && (options.length === 3 || options.length >= 4)) {
+          const cleanQuestion = String(question).trim();
+          const optionCount = options.length >= 4 ? 4 : 3;
+          const cleanOptions = options.slice(0, optionCount)
             .map(opt => String(opt).trim())
-            .filter(opt => opt && opt !== 'null' && opt.length > 0);
+            .filter(opt => opt && /[\u4e00-\u9fff]/.test(opt));
           
-          if (question && options.length === 3) {
-            setExtractedQuestion(question);
-            setExtractedOptions(options);
-            console.log('✅ 成功解析 JSON 格式（备用字段）:', { question, options });
-            return { question, options };
+          if (cleanQuestion && (cleanOptions.length === 3 || cleanOptions.length === 4)) {
+            setExtractedQuestion(cleanQuestion);
+            setExtractedOptions(cleanOptions);
+            console.log('✅ JSON解析成功:', { question: cleanQuestion, options: cleanOptions });
+            return { question: cleanQuestion, options: cleanOptions };
           }
         }
       }
     } catch (e) {
-      // JSON 解析失败，继续使用其他格式
-      console.log('JSON 解析失败，尝试其他格式:', e.message);
+      console.log('JSON解析失败，使用文本解析');
     }
     
-    // 处理纯文本格式：找到第一个完整的问题+选项组合
-    // 策略：找到问题结束位置（？或！），然后提取后面的三个选项，在第三个选项后立即停止
+    // 第二步：文本解析 - 简单直接的方法
+    // 方法1：直接匹配 "1. xxx 2. xxx 3. xxx 4. xxx" 格式
+    const optionPattern = /(\d+)[\.、．]\s*([^\d]+?)(?=\s*\d+[\.、．]|$)/g;
+    const optionMatches = [];
+    let match;
     
-    // 先找到第一个问题的结束位置
-    const questionEndMatch = reply.match(/(.+?[？?。！!])/);
-    if (!questionEndMatch) {
-      console.log('未找到问题结束标记');
-      return { question: '', options: [] };
+    while ((match = optionPattern.exec(text)) !== null) {
+      const num = parseInt(match[1]);
+      const content = match[2].trim();
+      if (num >= 1 && num <= 4 && content && /[\u4e00-\u9fff]/.test(content)) {
+        optionMatches.push({ num, content, index: match.index });
+      }
     }
     
-    const questionText = questionEndMatch[1];
-    const questionEndIndex = questionEndMatch.index + questionText.length;
-    
-    // 检查是否有重复的问题
-    const nextQuestionIndex = reply.indexOf(questionText, questionEndIndex);
-    let textToParse = reply;
-    if (nextQuestionIndex !== -1) {
-      // 如果找到重复，只取第一次出现的内容
-      textToParse = reply.substring(0, nextQuestionIndex);
-      console.log('检测到重复内容，只保留第一次出现');
+    // 如果找到了1-3或1-4的选项
+    if (optionMatches.length >= 3) {
+      const optionsMap = new Map();
+      optionMatches.forEach(m => {
+        if (m.num >= 1 && m.num <= 4 && !optionsMap.has(m.num)) {
+          optionsMap.set(m.num, m.content);
+        }
+      });
+      
+      if (optionsMap.size === 3 || optionsMap.size === 4) {
+        // 提取问题：从开头到第一个选项之前
+        const firstOptionIndex = optionMatches[0].index;
+        let question = text.substring(0, firstOptionIndex).trim();
+        
+        // 确保问题以问号结尾
+        if (!/[？?。！!]$/.test(question)) {
+          question = question.replace(/[。！!]$/, '') + '?';
+        }
+        
+        const options = [];
+        if (optionsMap.has(1)) options.push(optionsMap.get(1));
+        if (optionsMap.has(2)) options.push(optionsMap.get(2));
+        if (optionsMap.has(3)) options.push(optionsMap.get(3));
+        if (optionsMap.has(4)) options.push(optionsMap.get(4));
+        
+        const validOptions = options.filter(opt => opt && opt.trim().length > 0);
+        
+        if (question && (validOptions.length === 3 || validOptions.length === 4)) {
+          setExtractedQuestion(question);
+          setExtractedOptions(validOptions);
+          console.log('✅ 简单模式匹配成功:', { question, options: validOptions });
+          return { question, options: validOptions };
+        }
+      }
     }
     
-    // 从问题结束位置开始提取选项部分
-    let optionsPart = textToParse.substring(questionEndIndex).trim();
-    
-    // 在选项部分中，找到JSON开始的位置并截断
-    const jsonStartInOptions = optionsPart.search(/[\{\[]/);
-    if (jsonStartInOptions !== -1) {
-      optionsPart = optionsPart.substring(0, jsonStartInOptions).trim();
-      console.log('在选项部分截断JSON');
-    }
-    
-    // 匹配三个选项：1. xxx 2. xxx 3. xxx
-    // 使用完整匹配，确保只提取一次
-    const fullPattern = /1[\.、．]\s*(.+?)\s+2[\.、．]\s*(.+?)\s+3[\.、．]\s*(.+?)(?:\s*$|\s*\{|\s*\[|\s*4[\.、．])/s;
-    const fullMatch = optionsPart.match(fullPattern);
+    // 方法2：使用完整正则匹配 "问题？1. xxx 2. xxx 3. xxx 4. xxx"
+    const fullPattern = /(.+?[？?。！!])\s*(?:1[\.、．]\s*([^\d]+?)\s+2[\.、．]\s*([^\d]+?)\s+3[\.、．]\s*([^\d]+?)\s+4[\.、．]\s*([^\d]+?)(?:\s*\d|$))/s;
+    const fullMatch = text.match(fullPattern);
     
     if (fullMatch) {
-      let question = questionText.trim();
-      let option1 = fullMatch[1].trim();
-      let option2 = fullMatch[2].trim();
-      let option3 = fullMatch[3].trim();
+      const question = fullMatch[1].trim();
+      const options = [
+        fullMatch[2] ? fullMatch[2].trim() : '',
+        fullMatch[3] ? fullMatch[3].trim() : '',
+        fullMatch[4] ? fullMatch[4].trim() : '',
+        fullMatch[5] ? fullMatch[5].trim() : ''
+      ].filter(opt => opt && /[\u4e00-\u9fff]/.test(opt));
       
-      // 清理函数：彻底移除JSON和代码
-      const cleanText = (text) => {
-        if (!text) return '';
-        // 移除JSON对象和数组（循环直到没有变化）
-        let cleaned = text;
-        let prevLen = 0;
-        while (cleaned.length !== prevLen) {
-          prevLen = cleaned.length;
-          cleaned = cleaned.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '');
-        }
-        // 移除JSON关键字
-        cleaned = cleaned
-          .replace(/msg_type|generate_answer|finish_reason|FinData|from_module|from_unit|node_type|event|id|data/gi, '')
-          .replace(/[{}[\]"]+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        // 提取中文内容
-        return extractChineseContent(cleaned) || cleaned;
-      };
-      
-      question = cleanText(question);
-      option1 = cleanText(option1);
-      option2 = cleanText(option2);
-      option3 = cleanText(option3);
-      
-      // 验证：确保选项包含中文字符，不是纯代码
-      if (question && option1 && option2 && option3 && 
-          option1 !== 'null' && option2 !== 'null' && option3 !== 'null' &&
-          option1.length > 0 && option2.length > 0 && option3.length > 0 &&
-          /[\u4e00-\u9fff]/.test(option1) && /[\u4e00-\u9fff]/.test(option2) && /[\u4e00-\u9fff]/.test(option3)) {
+      if (question && (options.length === 3 || options.length === 4)) {
         setExtractedQuestion(question);
-        setExtractedOptions([option1, option2, option3]);
-        console.log('✅ 成功提取数字编号选项:', { question, options: [option1, option2, option3] });
-        console.log('原始Coze返回:', reply);
-        return { question, options: [option1, option2, option3] };
+        setExtractedOptions(options);
+        console.log('✅ 完整模式匹配成功:', { question, options });
+        return { question, options };
       }
     }
     
-    // 如果上面的方法失败，使用cleanedReply进行其他格式的解析
-    let cleanedReply = textToParse;
+    // 方法3：逐行解析
+    const lines = text.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+    let foundQuestion = '';
+    const foundOptions = [];
     
-    // 移除所有JSON对象和数组
-    let prevLength = 0;
-    while (cleanedReply.length !== prevLength) {
-      prevLength = cleanedReply.length;
-      cleanedReply = cleanedReply.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '');
-    }
-    
-    // 移除JSON相关的关键字和符号
-    cleanedReply = cleanedReply
-      .replace(/msg_type|generate_answer|finish_reason|FinData|from_module|from_unit|node_type|event|id|data/gi, '')
-      .replace(/[{}[\]"]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    // 格式1: 提取 n1、n2、n3 后的内容作为选项（优先处理）
-    // 匹配格式：n1 xxx n2 xxx n3 xxx 或者 n1:xxx n2:xxx n3:xxx
-    const n1Match = cleanedReply.match(/n1[：:：]?\s*([^\n]+?)(?=\s*n2|$)/i);
-    const n2Match = cleanedReply.match(/n2[：:：]?\s*([^\n]+?)(?=\s*n3|$)/i);
-    const n3Match = cleanedReply.match(/n3[：:：]?\s*([^\n]+?)(?=\s*n4|\s*$)/i);
-    
-    if (n1Match && n2Match && n3Match) {
-      // 提取每个选项的内容（n1/n2/n3 后的内容）
-      // 尽量保留原始文本，只做基本清理
-      let option1 = n1Match[1].trim();
-      let option2 = n2Match[1].trim();
-      let option3 = n3Match[1].trim();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       
-      // 只移除明显的JSON格式内容，保留其他文本
-      option1 = option1.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '').replace(/"[^"]*"/g, '').trim();
-      option2 = option2.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '').replace(/"[^"]*"/g, '').trim();
-      option3 = option3.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '').replace(/"[^"]*"/g, '').trim();
-      
-      // 移除末尾的多余标点和空格，但保留文本内容
-      option1 = option1.replace(/[，,。、\s]+$/, '').trim();
-      option2 = option2.replace(/[，,。、\s]+$/, '').trim();
-      option3 = option3.replace(/[，,。、\s]+$/, '').trim();
-      
-      // 使用改进的提取函数，尽量保留原始文本
-      option1 = extractChineseContent(option1) || option1.trim();
-      option2 = extractChineseContent(option2) || option2.trim();
-      option3 = extractChineseContent(option3) || option3.trim();
-      
-      if (option1 && option2 && option3) {
-        // 提取问题部分（移除 n1/n2/n3 相关的内容）
-        let question = reply
-          .replace(/n1[：:：]?\s*[^\n]+/gi, '')
-          .replace(/n2[：:：]?\s*[^\n]+/gi, '')
-          .replace(/n3[：:：]?\s*[^\n]+/gi, '')
-          .replace(/\n+/g, ' ')
-          .trim();
-        
-        // 从问题中移除已提取的选项文本（确保问题不包含选项内容）
-        [option1, option2, option3].forEach(option => {
-          if (option && option.trim()) {
-            const escapedOption = option.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            question = question.replace(new RegExp('\\s*' + escapedOption + '[，,。、\\s\\n]*', 'gi'), '');
-          }
-        });
-        
-        // 提取问题的中文内容
-        question = extractChineseContent(question);
-        
-        // 清理多余空格
-        question = question.replace(/\s+/g, ' ').trim();
-        
-        // 如果问题为空，使用默认问题
-        if (!question) {
-          question = '请选择：';
-        }
-        
-        setExtractedQuestion(question);
-        setExtractedOptions([option1, option2, option3]);
-        console.log('成功提取 n1/n2/n3 选项:', { question, options: [option1, option2, option3] });
-        console.log('原始Coze返回:', reply);
-        return { question, options: [option1, option2, option3] };
+      // 查找问题
+      if (!foundQuestion && /[？?。！!]/.test(line) && line.length > 5) {
+        foundQuestion = line;
+        continue;
       }
-    }
-    
-    // 格式2: 使用中文标点分隔（问题：... 选项1、选项2、选项3）
-    const pattern1 = /(.+?)[：:](.+?)[，,、](.+?)[，,、](.+?)$/;
-    const match1 = reply.match(pattern1);
-    if (match1) {
-      let question = extractChineseContent(match1[1].trim());
-      let option1 = extractChineseContent(match1[2].trim());
-      let option2 = extractChineseContent(match1[3].trim());
-      let option3 = extractChineseContent(match1[4].trim());
-      if (question && option1 && option2 && option3) {
-        setExtractedQuestion(question);
-        setExtractedOptions([option1, option2, option3]);
-        return { question, options: [option1, option2, option3] };
-      }
-    }
-    
-    // 格式3: 使用换行分隔（问题在上一行，选项在下一行用顿号或逗号分隔）
-    const lines = reply.split('\n').filter(line => line.trim());
-    if (lines.length >= 2) {
-      const lastLine = lines[lines.length - 1];
-      const optionsMatch = lastLine.match(/(.+?)[，,、](.+?)[，,、](.+?)$/);
-      if (optionsMatch) {
-        let question = extractChineseContent(lines.slice(0, -1).join(' ').trim());
-        let option1 = extractChineseContent(optionsMatch[1].trim());
-        let option2 = extractChineseContent(optionsMatch[2].trim());
-        let option3 = extractChineseContent(optionsMatch[3].trim());
-        if (question && option1 && option2 && option3) {
-          setExtractedQuestion(question);
-          setExtractedOptions([option1, option2, option3]);
-          return { question, options: [option1, option2, option3] };
+      
+      // 查找选项
+      const optionMatch = line.match(/^(\d+)[\.、．\s]+(.+)$/);
+      if (optionMatch) {
+        const num = parseInt(optionMatch[1]);
+        const content = optionMatch[2].trim();
+        if (num >= 1 && num <= 4 && content && /[\u4e00-\u9fff]/.test(content)) {
+          foundOptions[num - 1] = content;
         }
       }
     }
     
-    // 格式4: 使用数字编号（1. 选项1 2. 选项2 3. 选项3）- 优先处理，因为这是最常见的格式
-    // 匹配格式：问题？1. 选项1 2. 选项2 3. 选项3
-    // 改进：先找到问题结束位置，然后提取选项部分，确保只提取一次
-    const questionEndMatch2 = cleanedReply.match(/(.+?[？?。！!])/);
-    if (questionEndMatch2) {
-      const questionEndIndex2 = questionEndMatch2.index + questionEndMatch2[1].length;
-      let optionsPart = cleanedReply.substring(questionEndIndex2).trim();
-      
-      // 在选项部分开始前，如果遇到JSON开始符号，截断
-      const jsonStartIndex = optionsPart.search(/[\{\[]/);
-      if (jsonStartIndex !== -1) {
-        optionsPart = optionsPart.substring(0, jsonStartIndex).trim();
-      }
-      
-      // 匹配三个选项：1. xxx 2. xxx 3. xxx
-      // 使用更精确的正则，确保选项完整提取，并在第三个选项后停止
-      const fullOptionsPattern = /1[\.、．]\s*(.+?)\s+2[\.、．]\s*(.+?)\s+3[\.、．]\s*(.+?)(?:\s*$|\s*\{|\s*\[|\s*4[\.、．])/s;
-      const fullMatch = optionsPart.match(fullOptionsPattern);
-      
-      if (fullMatch) {
-        let question = extractChineseContent(questionEndMatch2[1].trim());
-        let option1 = fullMatch[1].trim();
-        let option2 = fullMatch[2].trim();
-        let option3 = fullMatch[3].trim();
-        
-        // 彻底移除选项中的JSON格式内容和代码
-        const cleanOption = (opt) => {
-          // 移除JSON对象和数组
-          let cleaned = opt;
-          let prevLen = 0;
-          while (cleaned.length !== prevLen) {
-            prevLen = cleaned.length;
-            cleaned = cleaned.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '');
-          }
-          // 移除JSON关键字和符号
-          cleaned = cleaned
-            .replace(/msg_type|generate_answer|finish_reason|FinData|from_module|from_unit|node_type|event|id|data/gi, '')
-            .replace(/[{}[\]"]+/g, ' ')
-            .trim();
-          return cleaned;
-        };
-        
-        option1 = cleanOption(option1);
-        option2 = cleanOption(option2);
-        option3 = cleanOption(option3);
-        
-        // 提取中文内容
-        option1 = extractChineseContent(option1) || option1;
-        option2 = extractChineseContent(option2) || option2;
-        option3 = extractChineseContent(option3) || option3;
-        
-        // 清理多余空格
-        option1 = option1.replace(/\s+/g, ' ').trim();
-        option2 = option2.replace(/\s+/g, ' ').trim();
-        option3 = option3.replace(/\s+/g, ' ').trim();
-        
-        // 过滤掉null、空值或只包含代码的内容
-        if (question && option1 && option2 && option3 && 
-            option1 !== 'null' && option2 !== 'null' && option3 !== 'null' &&
-            option1.length > 0 && option2.length > 0 && option3.length > 0 &&
-            // 确保选项不是纯代码（至少包含中文字符）
-            /[\u4e00-\u9fff]/.test(option1) && /[\u4e00-\u9fff]/.test(option2) && /[\u4e00-\u9fff]/.test(option3)) {
-          setExtractedQuestion(question);
-          setExtractedOptions([option1, option2, option3]);
-          console.log('✅ 成功提取数字编号选项:', { question, options: [option1, option2, option3] });
-          console.log('原始Coze返回:', reply);
-          return { question, options: [option1, option2, option3] };
-        }
-      }
+    const validFoundOptions = foundOptions.filter(opt => opt);
+    if (foundQuestion && (validFoundOptions.length === 3 || validFoundOptions.length === 4) && validFoundOptions.every(opt => opt)) {
+      setExtractedQuestion(foundQuestion);
+      setExtractedOptions(validFoundOptions);
+      console.log('✅ 逐行解析成功:', { question: foundQuestion, options: validFoundOptions });
+      return { question: foundQuestion, options: validFoundOptions };
     }
     
-    // 格式4-备用: 使用数字编号（1. 选项1 2. 选项2 3. 选项3）- 更宽松的匹配
-    // 只在第一个格式失败时使用，并且确保只匹配第一个出现的问题+选项组合
-    const pattern3 = /^(.+?[？?。！!])\s*(?:\n|\r\n)?\s*1[\.、．]\s*(.+?)\s+2[\.、．]\s*(.+?)\s+3[\.、．]\s*(.+?)(?:\s*\{|\s*\[|\s*4[\.、．]|$)/s;
-    const match3 = cleanedReply.match(pattern3);
-    if (match3) {
-      let question = extractChineseContent(match3[1].trim());
-      let option1 = match3[2].trim();
-      let option2 = match3[3].trim();
-      let option3 = match3[4].trim();
-      
-      // 彻底清理选项中的JSON和代码
-      const cleanOption = (opt) => {
-        let cleaned = opt;
-        let prevLen = 0;
-        while (cleaned.length !== prevLen) {
-          prevLen = cleaned.length;
-          cleaned = cleaned.replace(/\{[^{}]*\}/g, '').replace(/\[[^\[\]]*\]/g, '');
-        }
-        cleaned = cleaned
-          .replace(/msg_type|generate_answer|finish_reason|FinData|from_module|from_unit|node_type|event|id|data/gi, '')
-          .replace(/[{}[\]"]+/g, ' ')
-          .trim();
-        return extractChineseContent(cleaned) || cleaned;
-      };
-      
-      option1 = cleanOption(option1).replace(/\s+/g, ' ').trim();
-      option2 = cleanOption(option2).replace(/\s+/g, ' ').trim();
-      option3 = cleanOption(option3).replace(/\s+/g, ' ').trim();
-      
-      // 过滤掉null、空值或只包含代码的内容
-      if (question && option1 && option2 && option3 && 
-          option1 !== 'null' && option2 !== 'null' && option3 !== 'null' &&
-          option1.length > 0 && option2.length > 0 && option3.length > 0 &&
-          /[\u4e00-\u9fff]/.test(option1) && /[\u4e00-\u9fff]/.test(option2) && /[\u4e00-\u9fff]/.test(option3)) {
-        setExtractedQuestion(question);
-        setExtractedOptions([option1, option2, option3]);
-        console.log('✅ 成功提取数字编号选项（备用）:', { question, options: [option1, option2, option3] });
-        return { question, options: [option1, option2, option3] };
-      }
-    }
-    
-    // 格式5: 使用中括号或特殊标记 [选项1] [选项2] [选项3]
-    const bracketPattern = /\[([^\]]+)\].*?\[([^\]]+)\].*?\[([^\]]+)\]/;
-    const bracketMatch = reply.match(bracketPattern);
-    if (bracketMatch) {
-      let option1 = extractChineseContent(bracketMatch[1].trim());
-      let option2 = extractChineseContent(bracketMatch[2].trim());
-      let option3 = extractChineseContent(bracketMatch[3].trim());
-      let question = extractChineseContent(reply.replace(bracketPattern, '').trim());
-      if (option1 && option2 && option3) {
-        const finalQuestion = question || '请选择：';
-        setExtractedQuestion(finalQuestion);
-        setExtractedOptions([option1, option2, option3]);
-        return { question: finalQuestion, options: [option1, option2, option3] };
-      }
-    }
-    
-    // 如果无法提取，尝试智能分割：查找最后一个问号或句号，然后提取后面的三个选项
-    const questionEndMatch3 = reply.match(/^(.+?[？?。！!])\s*(.+)$/);
-    if (questionEndMatch3) {
-      let questionPart = extractChineseContent(questionEndMatch3[1].trim());
-      const optionsPart = questionEndMatch3[2].trim();
-      
-      // 尝试从选项部分提取三个选项
-      const options = optionsPart.split(/[，,、]/).map(opt => extractChineseContent(opt.trim())).filter(opt => opt);
-      if (options.length >= 3) {
-        setExtractedQuestion(questionPart);
-        setExtractedOptions(options.slice(0, 3));
-        return { question: questionPart, options: options.slice(0, 3) };
-      }
-    }
-    
-    console.log('未能从回复中提取问题和选项，将显示原始回复');
+    console.warn('❌ 所有解析方法都失败');
+    console.warn('文本内容:', text.substring(0, 500));
     return { question: '', options: [] };
   };
 
@@ -1319,79 +1101,121 @@ const Index = () => {
       console.log('收到回复（原始）:', reply);
       console.log('回复类型:', typeof reply);
       console.log('回复长度:', reply ? reply.length : 0);
-      console.log('完整回复内容:');
+      console.log('完整回复内容（前1000字符）:', reply ? reply.substring(0, 1000) : '');
+      console.log('完整回复内容（全部）:');
       console.log(JSON.stringify(reply, null, 2));
       console.log('========================================');
       
-      // 保存原始返回内容到状态，用于在页面显示
+      // 保存原始返回内容到状态，用于在页面显示（保存完整原始内容，不做任何处理）
       setRawCozeResponse(reply || '');
       
       // 解析回复内容，提取问题和选项（使用原始回复）
       const parsedResult = parseReplyContent(reply);
       
+      console.log('========== 解析结果 ==========');
+      console.log('解析后的问题:', parsedResult.question);
+      console.log('解析后的选项数量:', parsedResult.options?.length || 0);
+      console.log('解析后的选项:', parsedResult.options);
+      console.log('==============================');
+      
+      // 死规则：严格检查格式
+      // 必须是一行正文（问题）+ 三个或四个选项
+      const hasValidFormat = parsedResult.question && 
+                             parsedResult.question.trim().length > 0 &&
+                             parsedResult.options && 
+                             (parsedResult.options.length === 3 || parsedResult.options.length === 4) &&
+                             parsedResult.options.every(opt => opt && opt.trim().length > 0 && /[\u4e00-\u9fff]/.test(opt));
+      
+      if (!hasValidFormat) {
+        console.warn('❌ 格式不符合要求：必须是一行正文 + 三个或四个选项');
+        console.warn('问题:', parsedResult.question);
+        console.warn('选项数量:', parsedResult.options?.length || 0);
+        console.warn('选项:', parsedResult.options);
+        console.warn('原始回复内容:', reply);
+        
+        // 如果格式不符合，尝试重新解析或显示原始内容
+        // 先尝试更宽松的解析
+        const retryResult = parseReplyContent(reply);
+        if (retryResult.question && retryResult.options && (retryResult.options.length === 3 || retryResult.options.length === 4)) {
+          console.log('✅ 重试解析成功');
+          // 使用重试结果
+          const botMessageItem = {
+            type: 'bot',
+            content: '',
+            extractedQuestion: retryResult.question.trim(),
+            extractedOptions: retryResult.options.map(opt => opt.trim()),
+            timestamp: Date.now(),
+            messageId: `bot-${Date.now()}-${Math.random()}`,
+          };
+          setConversationHistory(prev => [...prev, botMessageItem]);
+          setBotReply('');
+          setIsProcessing(false);
+          setIsFetchingReply(false);
+          return;
+        }
+        
+        // 如果重试也失败，显示错误提示（而不是完全不显示）
+        const errorMessageItem = {
+          type: 'bot',
+          content: '抱歉，返回的内容格式不符合要求，无法解析出问题和选项。请检查 Coze 返回格式。',
+          extractedQuestion: '',
+          extractedOptions: [],
+          timestamp: Date.now(),
+          messageId: `bot-error-${Date.now()}-${Math.random()}`,
+        };
+        setConversationHistory(prev => [...prev, errorMessageItem]);
+        setBotReply(errorMessageItem.content);
+        setIsProcessing(false);
+        setIsFetchingReply(false);
+        console.error('❌ Coze 返回格式不符合要求，已显示错误提示');
+        return;
+      }
+      
       // 计算当前用户消息数量（用户消息已经在上面添加到历史记录中了）
       const currentUserMessageCount = conversationHistory.filter(msg => msg.type === 'user').length;
       
-      // 如果用户发送第6次及之后的消息，且解析到了3个选项，则添加第四个选项"进入湖心，看看结果"
-      if (currentUserMessageCount >= 6 && parsedResult.options && parsedResult.options.length === 3) {
-        parsedResult.options.push('进入湖心，看看结果');
-        console.log(`第${currentUserMessageCount}次消息：添加第四个选项"进入湖心，看看结果"`, parsedResult.options);
+      // 如果用户对话达到第6轮（currentUserMessageCount >= 6），且解析到了3个或4个选项，则添加第五个选项"进入湖心，看看结果"
+      // 注意：只有在格式正确（3个或4个选项）的情况下才添加第五个选项
+      // 从第6轮开始，后续所有轮次都会显示这个选项
+      let finalOptions = parsedResult.options.map(opt => opt.trim());
+      if (currentUserMessageCount >= 6 && (finalOptions.length === 3 || finalOptions.length === 4)) {
+        // 检查是否已经包含"进入湖心"选项，避免重复添加
+        const hasLakeHeartOption = finalOptions.some(opt => opt.includes('进入湖心') || opt.includes('进入心湖'));
+        if (!hasLakeHeartOption) {
+          finalOptions.push('进入湖心，看看结果');
+          console.log(`第${currentUserMessageCount}轮对话：添加第五个选项"进入湖心，看看结果"`, finalOptions);
+        }
       }
       
       // 如果成功提取了选项，content 设为空（问题和选项会通过 extractedQuestion 和 extractedOptions 单独显示）
-      let chineseContent = '';
-      const hasOptions = parsedResult.options && (parsedResult.options.length === 3 || parsedResult.options.length === 4);
-      if (!hasOptions) {
-        // 如果没有提取到选项，正常显示整个回复
-        chineseContent = extractChineseContent(reply);
-      }
-      // 有选项时，chineseContent 保持为空，不显示任何 content
-      
-      // 添加机器人回复到历史记录
-      // 如果有选项（3个或4个）：content 必须为空字符串，问题和选项通过 extractedQuestion 和 extractedOptions 显示
-      // 如果没有选项：content 显示完整回复内容
+      // 死规则：有选项时，content 必须为空字符串
       const botMessageItem = {
         type: 'bot',
-        content: hasOptions ? '' : chineseContent, // 有选项时强制为空
-        extractedQuestion: parsedResult.question || '', // 确保是字符串
-        extractedOptions: parsedResult.options || [], // 确保是数组
+        content: '', // 有选项时强制为空，不显示任何 content
+        extractedQuestion: parsedResult.question.trim(), // 确保是字符串且已清理
+        extractedOptions: finalOptions, // 使用最终选项（可能包含第五个选项）
         timestamp: Date.now(),
         messageId: `bot-${Date.now()}-${Math.random()}`, // 为每个消息创建唯一ID
       };
       
-      console.log('保存到历史记录:', {
-        hasOptions: botMessageItem.extractedOptions.length === 3,
-        content: `"${botMessageItem.content}"`,
-        contentLength: botMessageItem.content.length,
+      console.log('✅ 保存到历史记录（格式正确）:', {
+        hasOptions: true,
         question: `"${botMessageItem.extractedQuestion}"`,
+        questionLength: botMessageItem.extractedQuestion.length,
         options: botMessageItem.extractedOptions,
+        optionsCount: botMessageItem.extractedOptions.length,
       });
       
       setConversationHistory(prev => [...prev, botMessageItem]);
       
-      setBotReply(chineseContent);
+      // 有选项时，botReply 设为空（问题和选项会单独显示）
+      setBotReply('');
       
       setIsProcessing(false);
       console.log('=== Coze API 调用完成 ===');
       
-      // 检测回复内容是否不是固定的选项格式（没有提取到3个或4个选项）
-      // 如果不是选项格式，则进入最后一个页面
-      if (!parsedResult.options || (parsedResult.options.length !== 3 && parsedResult.options.length !== 4)) {
-        console.log('检测到回复内容不是选项格式，进入湖心页面');
-        
-        // 保存原始返回内容
-        setLakeHeartRawResponse(reply || '');
-        
-        // 解析M1M2M3M4格式内容
-        const parsedSections = parseLakeHeartContent(chineseContent);
-        setLakeHeartSections(parsedSections);
-        setLakeHeartContent(chineseContent);
-        console.log('解析后的四段内容:', parsedSections);
-        
-        // API已经调用完成，直接切换到第四页
-        setShowThirdPage(false);
-        setShowFourthPage(true);
-      }
+      // 注意：不再自动跳转到湖心页面
+      // 用户必须通过点击"进入湖心，看看结果"选项来进入湖心页面
     } catch (error) {
       console.error('=== 获取机器人回复失败 ===');
       console.error('错误类型:', error.name);
@@ -1969,6 +1793,7 @@ const Index = () => {
         }}
         onClick={handleSplashClick}
       >
+        
         {/* 黑色背景层 */}
         <div
           style={{
@@ -2088,7 +1913,8 @@ const Index = () => {
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            opacity: 1,
+            opacity: showStarPageBackground ? 1 : 0,
+            transition: 'opacity 1s cubic-bezier(0.4, 0, 0.2, 1)',
             zIndex: 0,
           }}
         />
@@ -2182,21 +2008,26 @@ const Index = () => {
               key={index}
               style={{
                 position: 'absolute',
-                top: 'calc(50% - 50px)',
+                top: 'calc(50% - 100px)',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 10,
                 fontSize: '24px',
-                fontFamily: '汉仪瑞意宋',
+                fontFamily: "'Source Han Serif SC', 'Noto Serif SC', '思源宋体', serif",
                 fontWeight: '400',
-                color: 'rgba(255, 255, 255, 0.7)',
                 textAlign: 'center',
                 whiteSpace: 'nowrap',
                 opacity: 0,
+                background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.4) 40%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 255, 255, 0.4) 60%, rgba(255, 255, 255, 0.4) 100%)',
+                backgroundSize: '300% 100%',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                color: 'transparent',
                 animation: shouldFadeOut
                   ? 'starPageTextFadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards'
                   : isActive
-                  ? 'starPageTextFadeIn 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards, starPageTextAnimation 3.25s cubic-bezier(0.4, 0, 0.2, 1) 0.65s forwards'
+                  ? 'starPageTextFadeIn 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards, starPageTextAnimation 3.25s cubic-bezier(0.4, 0, 0.2, 1) 0.65s forwards, softShimmerSweep 12s ease-in-out infinite 0.65s'
                   : 'none',
                 pointerEvents: 'none',
               }}
@@ -2221,7 +2052,8 @@ const Index = () => {
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            opacity: 1,
+            opacity: showFourthPageBackground ? 1 : 0,
+            transition: 'opacity 1s cubic-bezier(0.4, 0, 0.2, 1)',
             zIndex: 0,
           }}
         />
@@ -2340,6 +2172,8 @@ const Index = () => {
             fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
             transition: 'all 0.2s',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            opacity: 0,
+            animation: 'fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards',
           }}
           onMouseEnter={(e) => {
             e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
@@ -2372,6 +2206,8 @@ const Index = () => {
               fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
               transition: 'all 0.2s',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              opacity: 0,
+              animation: 'fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards',
             }}
             onMouseEnter={(e) => {
               e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
@@ -2530,8 +2366,14 @@ const Index = () => {
         {/* 底部按钮：继续和心湖聊聊 */}
         <div
           onClick={() => {
+            // 淡出湖心页背景，淡入第三页背景
+            setShowFourthPageBackground(false);
             setShowFourthPage(false);
             setShowThirdPage(true);
+            // 延迟一小段时间后开始第三页背景淡入
+            setTimeout(() => {
+              setShowThirdPageBackground(true);
+            }, 50);
           }}
           style={{
             position: 'absolute',
@@ -2581,6 +2423,8 @@ const Index = () => {
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
+            opacity: showThirdPageBackground ? 1 : 0,
+            transition: 'opacity 1s cubic-bezier(0.4, 0, 0.2, 1)',
             zIndex: 0,
           }}
         />
@@ -2612,41 +2456,6 @@ const Index = () => {
               }}
             />
           </div>
-        )}
-        {/* 渐变模糊背景 */}
-        <div 
-          ref={gradientRef}
-          className="absolute"
-          style={{
-            left: '312px',
-            bottom: '0px',
-            width: '857px',
-            height: '200px',
-            background: 'linear-gradient(100deg, rgb(0, 87, 83) 4%, rgb(0, 81, 147) 98%)',
-            filter: 'blur(214px)',
-            opacity: 1,
-            zIndex: 1,
-            pointerEvents: 'none',
-          }}
-        />
-        
-        {/* 深蓝绿色光晕呼吸效果 */}
-        {isHoldingGradient && touchPosition.x > 0 && touchPosition.y > 100 && (
-          <div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              left: `${touchPosition.x}px`,
-              top: `${touchPosition.y}px`,
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(0, 147, 147, 0.9) 0%, rgba(0, 105, 120, 0.7) 30%, rgba(0, 87, 83, 0.5) 50%, transparent 70%)',
-              transform: 'translate(-50%, -50%)',
-              animation: 'glowPulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-              zIndex: 10,
-              filter: 'blur(50px)',
-              willChange: 'transform',
-            }}
-          />
         )}
         {/* 标题 - 对话开始时向上滚动消失 */}
         <div
@@ -2700,76 +2509,173 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Coze 原始返回内容显示区域 - 调试用 */}
+        {/* Coze 原始返回内容对话框 */}
         {rawCozeResponse && (
-          <div
-            style={{
-              position: 'fixed',
-              top: '10px',
-              right: '10px',
-              zIndex: 1000,
-              maxWidth: '400px',
-              maxHeight: '300px',
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '8px',
-              padding: '0px',
-              overflow: 'auto',
-              fontSize: '12px',
-              fontFamily: 'monospace',
-              color: 'rgba(255, 255, 255, 0.9)',
-              display: showRawResponse ? 'block' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
-              <div style={{ fontWeight: 'bold', color: 'rgba(255, 255, 255, 1)' }}>Coze 原始返回内容</div>
+          <>
+            {/* 显示原始返回内容的按钮 */}
+            {!showRawResponse && (
               <button
-                onClick={() => setShowRawResponse(false)}
+                onClick={() => setShowRawResponse(true)}
                 style={{
-                  background: 'transparent',
+                  position: 'fixed',
+                  top: '20px',
+                  right: showCozeConfigDialog ? '140px' : '20px',
+                  zIndex: 1000,
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
                   border: '1px solid rgba(255, 255, 255, 0.3)',
-                  color: 'rgba(255, 255, 255, 0.8)',
                   borderRadius: '20px',
-                  padding: '0px 0px',
+                  padding: '8px 16px',
+                  color: 'rgba(255, 255, 255, 0.9)',
                   cursor: 'pointer',
-                  fontSize: '12px',
+                  fontSize: '13px',
+                  fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                 }}
               >
-                关闭
+                📋 查看 Coze 返回
               </button>
-            </div>
-            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {rawCozeResponse}
-            </div>
-          </div>
-        )}
-        
-        {/* 显示原始返回内容的按钮 */}
-        {rawCozeResponse && !showRawResponse && (
-          <button
-            onClick={() => setShowRawResponse(true)}
-            style={{
-              position: 'fixed',
-              top: '10px',
-              right: '10px',
-              zIndex: 1000,
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '20px',
-              padding: '0px 0px',
-              color: 'rgba(255, 255, 255, 0.8)',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontFamily: 'monospace',
-            }}
-          >
-            查看 Coze 原始返回
-          </button>
+            )}
+            
+            {/* 对话框窗口 */}
+            {showRawResponse && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 2000,
+                  width: '90%',
+                  maxWidth: '800px',
+                  maxHeight: '80vh',
+                  backgroundColor: 'rgba(0, 0, 0, 0.95)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* 标题栏 */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px 20px',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: '600',
+                      fontSize: '16px',
+                      color: 'rgba(255, 255, 255, 1)',
+                      fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
+                    }}
+                  >
+                    📋 Coze API 原始返回内容
+                  </div>
+                  <button
+                    onClick={() => setShowRawResponse(false)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      borderRadius: '20px',
+                      padding: '6px 16px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    }}
+                  >
+                    关闭
+                  </button>
+                </div>
+                
+                {/* 内容区域 */}
+                <div
+                  style={{
+                    flex: 1,
+                    overflow: 'auto',
+                    padding: '20px',
+                    fontSize: '13px',
+                    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace",
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {(() => {
+                    // 尝试格式化 JSON
+                    try {
+                      const jsonData = JSON.parse(rawCozeResponse);
+                      return JSON.stringify(jsonData, null, 2);
+                    } catch (e) {
+                      // 不是 JSON，直接显示原始内容
+                      return rawCozeResponse;
+                    }
+                  })()}
+                </div>
+                
+                {/* 底部信息栏 */}
+                <div
+                  style={{
+                    padding: '12px 20px',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '12px',
+                    color: 'rgba(255, 255, 255, 0.6)',
+                    fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
+                  }}
+                >
+                  内容长度: {rawCozeResponse.length} 字符
+                </div>
+              </div>
+            )}
+            
+            {/* 遮罩层 */}
+            {showRawResponse && (
+              <div
+                onClick={() => setShowRawResponse(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  zIndex: 1999,
+                  backdropFilter: 'blur(4px)',
+                }}
+              />
+            )}
+          </>
         )}
         
         {/* 对话历史记录 - 可滚动区域（全屏，在底部对话框下方） */}
         <div
           ref={scrollContainerRef}
+          className="hide-scrollbar"
           style={{
             position: 'absolute',
             top: '0px',
@@ -2790,8 +2696,9 @@ const Index = () => {
             transform: isExitingThirdPage ? 'translateY(-100px)' : 'translateY(0)',
             filter: isExitingThirdPage ? 'blur(20px)' : 'blur(0)',
             transition: isExitingThirdPage ? 'all 1.2s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-            filter: isExitingThirdPage ? 'blur(20px)' : 'blur(0)',
-            transition: isExitingThirdPage ? 'all 1.2s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+            // 隐藏滚动条但保持滚动功能
+            scrollbarWidth: 'none', // Firefox
+            msOverflowStyle: 'none', // IE 和 Edge
           }}
         >
           {conversationHistory.map((message, index) => {
@@ -2802,7 +2709,7 @@ const Index = () => {
             const delay = animationDelay;
             
             // 判断是否有选项，如果有选项则外层不添加动画，让子元素分别动画
-            const hasOptions = message.type === 'bot' && message.extractedOptions && message.extractedOptions.length === 3;
+            const hasOptions = message.type === 'bot' && message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4 || message.extractedOptions.length === 5);
             
             // 判断是否是最后一条用户消息（找到最后一条用户消息的索引）
             const lastUserMessageIndex = conversationHistory.map((msg, idx) => 
@@ -2864,7 +2771,7 @@ const Index = () => {
                 <div
                   style={{
                     display: 'flex',
-                    justifyContent: (message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4)) ? 'center' : 'flex-start',
+                    justifyContent: (message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4 || message.extractedOptions.length === 5)) ? 'center' : 'flex-start',
                     marginBottom: '16px',
                     width: '100%',
                     boxSizing: 'border-box',
@@ -2872,12 +2779,12 @@ const Index = () => {
                 >
                   <div
                     style={{
-                      maxWidth: (message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4)) ? '100%' : '70%',
+                      maxWidth: (message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4 || message.extractedOptions.length === 5)) ? '100%' : '70%',
                       padding: '12px 16px',
-                      width: (message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4)) ? '100%' : 'auto',
+                      width: (message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4 || message.extractedOptions.length === 5)) ? '100%' : 'auto',
                       boxSizing: 'border-box',
                       // 如果有选项，不在这里添加动画，让子元素分别动画
-                      ...(message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4) ? {} : {
+                      ...(message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4 || message.extractedOptions.length === 5) ? {} : {
                         opacity: 0,
                         transform: 'translateY(20px)',
                         animation: `messageSlideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${delay}ms forwards`,
@@ -2885,7 +2792,7 @@ const Index = () => {
                     }}
                   >
                     {/* 如果有三个或四个选项，显示问题和选项（不显示 content） */}
-                    {message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4) ? (
+                    {message.extractedOptions && (message.extractedOptions.length === 3 || message.extractedOptions.length === 4 || message.extractedOptions.length === 5) ? (
                       <div
                         style={{
                           display: 'flex',
@@ -2897,24 +2804,27 @@ const Index = () => {
                           boxSizing: 'border-box',
                         }}
                       >
-                        {/* 显示问题（一段话） */}
+                        {/* 显示问题（一段话）- 严格按照样式：左对齐，白色，可多行 */}
                         {message.extractedQuestion && message.extractedQuestion.trim() && (
                           <div
                             style={{
                               fontSize: '16px',
                               fontFamily: 'Noto Serif SC',
                               fontWeight: '400',
-                              color: 'rgba(255, 255, 255, 0.8)',
+                              color: 'rgba(255, 255, 255, 1)', // 纯白色，与图片一致
                               lineHeight: '1.6',
                               wordBreak: 'break-word',
-                              marginBottom: '8px',
+                              marginBottom: '16px', // 增加与选项的间距
                               textAlign: 'left',
                               width: '100%',
                               maxWidth: '100%',
+                              paddingLeft: '0px',
+                              paddingRight: '0px',
                               boxSizing: 'border-box',
                               opacity: 0,
                               transform: 'translateY(20px)',
                               animation: `messageSlideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${delay}ms forwards`,
+                              whiteSpace: 'pre-wrap', // 允许换行
                             }}
                           >
                             {message.extractedQuestion}
@@ -2973,14 +2883,16 @@ const Index = () => {
                                 fontSize: '16px',
                                 fontFamily: 'Noto Serif SC',
                                 fontWeight: '400',
-                                color: 'rgba(255, 255, 255, 0.8)',
+                                color: isLakeHeart ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.8)',
                                 backgroundColor: isSelected 
                                   ? 'rgba(255, 240, 200, 0.15)' 
+                                  : isLakeHeart
+                                  ? 'rgba(255, 255, 255, 0.05)'
                                   : 'rgba(255, 255, 255, 0.1)',
                                 border: isSelected
                                   ? '1px solid rgba(255, 220, 150, 0.4)'
                                   : isLakeHeart
-                                  ? '1px solid rgba(255, 220, 150, 0.2)'
+                                  ? '1px solid rgba(255, 220, 150, 0.15)'
                                   : '1px solid rgba(255, 255, 255, 0.2)',
                                 borderRadius: '20px',
                                 cursor: 'pointer',
@@ -2989,14 +2901,25 @@ const Index = () => {
                                 textAlign: 'left',
                                 opacity: 0,
                                 transform: 'translateY(20px)',
-                                animation: `messageSlideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${optionDelay}ms forwards`,
+                                animation: isLakeHeart 
+                                  ? `messageSlideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${optionDelay}ms forwards, lakeHeartGlow 3s ease-in-out infinite ${optionDelay + 800}ms`
+                                  : `messageSlideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) ${optionDelay}ms forwards`,
                                 boxShadow: isSelected
                                   ? '0 0 15px rgba(255, 220, 150, 0.3), 0 0 30px rgba(255, 220, 150, 0.15), inset 0 0 20px rgba(255, 240, 200, 0.1)'
+                                  : isLakeHeart
+                                  ? '0 0 10px rgba(255, 220, 150, 0.2), 0 0 20px rgba(255, 220, 150, 0.1), inset 0 0 10px rgba(255, 240, 200, 0.05)'
                                   : 'none',
                                 position: 'relative',
                                 boxSizing: 'border-box',
                                 wordWrap: 'break-word',
                                 overflowWrap: 'break-word',
+                                whiteSpace: 'normal',
+                                overflow: 'visible',
+                                textOverflow: 'clip',
+                                lineHeight: '1.5',
+                                minHeight: 'auto',
+                                display: 'flex',
+                                alignItems: 'center',
                               }}
                               onMouseEnter={(e) => {
                                 if (!isSelected) {
@@ -3022,25 +2945,9 @@ const Index = () => {
                         </div>
                       </div>
                     ) : (
-                      // 普通文本回复 - 无背景框（只在没有选项时显示）
-                      // 确保有选项时不显示 content
-                      !message.extractedOptions || (message.extractedOptions.length !== 3 && message.extractedOptions.length !== 4) ? (
-                        message.content && message.content.trim() && (
-                          <div
-                            style={{
-                              fontSize: '16px',
-                              fontFamily: 'Noto Serif SC',
-                              fontWeight: '400',
-                              color: 'rgba(255, 255, 255, 0.8)',
-                              lineHeight: '1.6',
-                              wordBreak: 'break-word',
-                              textAlign: 'left',
-                            }}
-                          >
-                            {message.content}
-                          </div>
-                        )
-                      ) : null
+                      // 严格按照样式要求：只显示问题和四个选项的格式
+                      // 如果没有选项，不显示任何内容（避免显示普通文本回复）
+                      null
                     )}
                   </div>
                 </div>
@@ -3168,8 +3075,13 @@ const Index = () => {
                   fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif",
                   fontWeight: '400',
                   textAlign: 'center',
-                  opacity: (isHoldingGradient || isListening || isProcessing || isFetchingReply) ? 1 : 0.6,
+                  opacity: (isHoldingGradient || isListening || isProcessing || isFetchingReply) ? 1 : (showThirdPage && conversationHistory.length === 0 ? 0 : 0.6),
                   pointerEvents: 'none',
+                  animation: (isHoldingGradient || isListening || isProcessing || isFetchingReply) 
+                    ? 'textShimmer 2s cubic-bezier(0.4, 0, 0.2, 1) infinite'
+                    : (showThirdPage && conversationHistory.length === 0 
+                      ? 'fadeInUp 0.8s ease-out 1.5s forwards' 
+                      : 'none'),
                   ...(isHoldingGradient || isListening || isProcessing || isFetchingReply) ? {
                     background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0.3) 100%)',
                     backgroundSize: '200% 100%',
@@ -3177,7 +3089,6 @@ const Index = () => {
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                     color: 'transparent',
-                    animation: 'textShimmer 2s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                   } : {
                     color: 'rgba(255, 255, 255, 0.8)',
                   },
@@ -3204,6 +3115,9 @@ const Index = () => {
                 justifyContent: 'flex-end',
                 pointerEvents: 'auto',
                 zIndex: 10,
+                opacity: showThirdPage && conversationHistory.length === 0 ? 0 : (showThirdPage ? 1 : 0),
+                transform: showThirdPage && conversationHistory.length === 0 ? 'translateY(10px) scale(0.9)' : (showThirdPage ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.9)'),
+                animation: showThirdPage && conversationHistory.length === 0 ? 'fadeInUp 0.8s ease-out 1.8s forwards' : 'none',
               }}
               onClick={handleKeyboardIconClick}
               onTouchStart={(e) => {
@@ -3349,18 +3263,6 @@ const Index = () => {
             zIndex: 0,
           }}
         />
-        {/* 半透明白色遮罩背景层 */}
-        <div 
-          className="absolute opacity-10"
-          style={{
-            width: '602.5px',
-            height: '906.5px',
-            left: '-59.5px',
-            top: '-25px',
-            background: 'rgba(255, 255, 255, 0.15)',
-            zIndex: 1,
-          }}
-        />
         
         {/* 紫色渐变圆形模糊背景 */}
         <div 
@@ -3372,7 +3274,9 @@ const Index = () => {
             top: '-205.5px',
             backgroundColor: 'rgba(89, 80, 255, 1)',
             filter: 'blur(500px)',
+            opacity: 0,
             zIndex: 1,
+            animation: 'fadeIn 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards',
           }}
         />
         
@@ -3594,10 +3498,9 @@ const Index = () => {
             transform: isExitingSecondPage ? 'translateX(-50%) translateY(-100px)' : 'translateX(-50%)',
             cursor: 'pointer',
             zIndex: 3,
-            pointerEvents: 'auto',
-            opacity: isExitingSecondPage ? 0 : 1,
-            filter: isExitingSecondPage ? 'blur(20px)' : 'blur(0)',
-            transition: isExitingSecondPage ? 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+            pointerEvents: isExitingSecondPage ? 'none' : 'auto',
+            opacity: 0,
+            filter: 'blur(10px)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -3605,6 +3508,9 @@ const Index = () => {
             gap: '8px',
             margin: 0,
             padding: 0,
+            animation: isExitingSecondPage 
+              ? 'exploreLakeFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards' 
+              : 'exploreLakeFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards',
           }}
           onClick={handleNextStepClick}
           onTouchStart={(e) => {
@@ -3626,7 +3532,9 @@ const Index = () => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
               color: 'transparent',
-              animation: isExitingSecondPage ? 'none' : 'textShimmer 4s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+              animation: isExitingSecondPage 
+                ? 'none' 
+                : 'textShimmer 4s cubic-bezier(0.4, 0, 0.2, 1) infinite 1.1s',
               textAlign: 'center',
               whiteSpace: 'nowrap',
               padding: 0,
@@ -3723,18 +3631,6 @@ const Index = () => {
             transition: 'opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
-        {/* 半透明白色遮罩背景层 */}
-        <div 
-          className="absolute opacity-10"
-          style={{
-            width: '602.5px',
-            height: '906.5px',
-            left: '-59.5px',
-            top: '-25px',
-            background: 'rgba(255, 255, 255, 0.15)',
-            zIndex: 1,
-          }}
-        />
         
         {/* 紫色渐变圆形模糊背景 */}
         <div 
@@ -3746,7 +3642,9 @@ const Index = () => {
             top: '-205.5px',
             backgroundColor: 'rgba(89, 80, 255, 1)',
             filter: 'blur(500px)',
+            opacity: 0,
             zIndex: 1,
+            animation: 'fadeIn 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards',
           }}
         />
         
@@ -3844,3 +3742,4 @@ const Index = () => {
 };
 
 export default Index;
+

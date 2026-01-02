@@ -98,11 +98,34 @@ export const NoCodeProvider = ({ children }) => {
   // 在开发环境下始终显示内容以便预览，生产环境下需要等待 SDK 初始化完成
   const shouldRenderChildren = useMemo(() => isReady || isDevelopment, [isReady, isDevelopment]);
   
-  return (
-    <NoCodeSDKContext.Provider value={value}>
-      {shouldRenderChildren ? children : ""}
-    </NoCodeSDKContext.Provider>
-  );
+  // 调试信息
+  useEffect(() => {
+    console.log('🔍 NoCodeProvider 状态:', {
+      isAvailable,
+      isReady,
+      isLoading,
+      isDevelopment,
+      shouldRenderChildren,
+      initError: initError?.message
+    });
+  }, [isAvailable, isReady, isLoading, isDevelopment, shouldRenderChildren, initError]);
+  
+  try {
+    return (
+      <NoCodeSDKContext.Provider value={value}>
+        {shouldRenderChildren ? children : <div style={{padding: '20px', color: 'red'}}>等待 SDK 初始化...</div>}
+      </NoCodeSDKContext.Provider>
+    );
+  } catch (error) {
+    console.error('❌ NoCodeProvider 渲染出错:', error);
+    return (
+      <div style={{padding: '20px', color: 'red', fontFamily: 'monospace'}}>
+        <h1>NoCodeProvider 错误</h1>
+        <pre>{error.toString()}</pre>
+        <pre>{error.stack || ''}</pre>
+      </div>
+    );
+  }
 };
 
 

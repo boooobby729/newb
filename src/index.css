@@ -94,6 +94,17 @@
   }
 }
 
+@keyframes lakeHeartGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 220, 150, 0.2), 0 0 20px rgba(255, 220, 150, 0.1), inset 0 0 10px rgba(255, 240, 200, 0.05);
+    border-color: rgba(255, 220, 150, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 220, 150, 0.4), 0 0 40px rgba(255, 220, 150, 0.2), inset 0 0 20px rgba(255, 240, 200, 0.15);
+    border-color: rgba(255, 220, 150, 0.3);
+  }
+}
+
 @keyframes arrowBounce {
   0%, 100% {
     transform: translateX(-50%) translateY(0);
@@ -225,12 +236,59 @@
   }
 }
 
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes exploreLakeFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes exploreLakeFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-100px);
+    filter: blur(20px);
+  }
+}
+
 @keyframes textShimmerSweep {
   0% {
     background-position: -200% center;
   }
   100% {
     background-position: 200% center;
+  }
+}
+
+/* 更柔和的扫光效果 - 用于星光页 */
+@keyframes softShimmerSweep {
+  0% {
+    background-position: -300% center;
+  }
+  100% {
+    background-position: 300% center;
   }
 }
 
@@ -532,6 +590,16 @@
     filter: blur(3px);
     opacity: 0.5;
   }
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 和 Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 /* 心湖倒影容器 */
